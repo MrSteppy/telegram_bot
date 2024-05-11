@@ -24,9 +24,11 @@ pub type Result<T> = std::result::Result<T, TelegramError>;
 pub type ChatID = i64;
 pub type MessageID = i32;
 
+const MUTEX_POISONED: &str = "mutex has been poisoned";
+
 #[derive(Debug, Clone)]
 pub struct Bot {
-  update_receiver: Arc<Receiver<Result<update::Update>>>,
+  update_receiver: Arc<Mutex<Receiver<Result<update::Update>>>>,
   network_error_cooldown: Arc<Mutex<Duration>>,
   bot: teloxide::Bot,
   runtime: Arc<Runtime>,
@@ -41,7 +43,7 @@ impl Bot {
     let network_error_cooldown = Arc::new(Mutex::new(Duration::from_secs(2)));
     let nec_mutex = network_error_cooldown.clone();
     let (update_sender, update_receiver) = mpsc::channel();
-    let update_receiver = Arc::new(update_receiver);
+    let update_receiver = Arc::new(Mutex::new(update_receiver));
     let runtime = Arc::new(
       Runtime::new()
         .map_err(|e| TelegramError::new("failed to create tokio runtime").with_cause(e))?,
@@ -158,19 +160,31 @@ impl Bot {
   }
 
   pub fn poll_update(&self) -> Option<Result<update::Update>> {
-    self.update_receiver.try_recv().ok()
+    self
+      .update_receiver
+      .lock()
+      .expect(MUTEX_POISONED)
+      .try_recv()
+      .ok()
   }
 
   pub fn await_update(&self) -> Result<update::Update> {
     self
       .update_receiver
+      .lock()
+      .expect(MUTEX_POISONED)
       .recv()
       .map_err(|e| TelegramError::new("update sender has gone out of scope").with_cause(e))
       .and_then(|r| r)
   }
 
   pub fn await_update_with_timeout(&self, time_out: Duration) -> Option<Result<update::Update>> {
-    self.update_receiver.recv_timeout(time_out).ok()
+    self
+      .update_receiver
+      .lock()
+      .expect(MUTEX_POISONED)
+      .recv_timeout(time_out)
+      .ok()
   }
 
   pub fn get_network_error_cooldown(&self) -> Duration {

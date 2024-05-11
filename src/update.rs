@@ -1,3 +1,6 @@
+use std::ops::Add;
+use std::time::{Duration, SystemTime};
+
 use teloxide::dispatching::dialogue::GetChatId;
 use teloxide::prelude::*;
 
@@ -21,6 +24,7 @@ pub struct Message {
   pub id: MessageID,
   pub text: String,
   pub replying_to: Option<Box<Message>>,
+  pub timestamp: SystemTime,
 }
 
 impl Message {
@@ -31,6 +35,7 @@ impl Message {
       replying_to: message
         .reply_to_message()
         .and_then(|message| Self::from(message).map(|message| Box::new(message))),
+      timestamp: SystemTime::UNIX_EPOCH.add(Duration::from_secs(message.date.timestamp() as u64)),
     }
     .into()
   }
@@ -40,7 +45,11 @@ impl Message {
 pub struct Query {
   pub text: String,
   pub message: Message,
+  /// use [`Update::user`] instead
+  #[deprecated]
   pub from: User,
+  /// use [`Update::chat_id`] instead
+  #[deprecated]
   pub chat_id: ChatID,
 }
 

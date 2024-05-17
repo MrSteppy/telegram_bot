@@ -14,6 +14,7 @@ use crate::{ChatID, VarArgs};
 pub const MESSAGE_CHAR_LIMIT: u32 = 4096;
 pub const QUERY_BYTE_LIMIT: u32 = 64;
 
+#[derive(Debug)]
 pub struct SendMessage {
   text: String,
   send_to: ChatID,

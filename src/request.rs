@@ -12,6 +12,7 @@ use crate::update::Message;
 use crate::{ChatID, VarArgs};
 
 pub const MESSAGE_CHAR_LIMIT: u32 = 4096;
+pub const QUERY_BYTE_LIMIT: u32 = 64;
 
 #[derive(Debug)]
 pub struct SendMessage {
@@ -92,6 +93,15 @@ impl SendMessage {
       send_message.reply_to_message_id = Some(MessageId(reply_to.id));
     }
 
+    for button in self.buttons.iter().flat_map(|row| row) {
+      let bytes = button.query.len();
+      if bytes > QUERY_BYTE_LIMIT as usize {
+        Err(TelegramError::new(format!(
+          "query size ({} bytes) for button {:?} exceeds limit ({} bytes)",
+          bytes, button, QUERY_BYTE_LIMIT
+        )))?;
+      }
+    }
     send_message.reply_markup = Some(ReplyMarkup::InlineKeyboard(InlineKeyboardMarkup {
       inline_keyboard: self
         .buttons
